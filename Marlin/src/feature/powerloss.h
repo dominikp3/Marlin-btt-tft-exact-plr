@@ -170,6 +170,7 @@ class PrintJobRecovery {
     // Track each command's file offsets
     static uint32_t command_sdpos() { return sdpos[queue_index_r]; }
     static void commit_sdpos(const uint8_t index_w) { sdpos[index_w] = cmd_sdpos; }
+    static void set_command_sdpos(const uint8_t index, const uint32_t position) { sdpos[index] = position; }
 
     static bool enabled;
     static void enable(const bool onoff);

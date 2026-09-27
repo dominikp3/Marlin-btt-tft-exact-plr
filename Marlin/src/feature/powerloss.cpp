@@ -68,6 +68,8 @@ uint32_t PrintJobRecovery::cmd_sdpos, // = 0
 
 #define DEBUG_OUT ENABLED(DEBUG_POWER_LOSS_RECOVERY)
 #include "../core/debug_out.h"
+#include <src/module/stepper.h>
+#include "controllerfan.h"
 
 PrintJobRecovery recovery;
 
@@ -304,6 +306,15 @@ void PrintJobRecovery::save(const bool force/*=false*/, const float zraise/*=POW
       lock = true;
     #endif
 
+    // The stepper ISR records the identifier of the planner block when that
+    // block starts. Preserve it before quick-stop and the emergency moves can
+    // replace the active block.
+    const uint32_t interrupted_id = info.sdpos;
+
+    // Maximize power savings - Disable all heaters and fans to reduce power loss
+    thermalManager.disable_all_heaters();
+    thermalManager.zero_fan_speeds();
+
     #if POWER_LOSS_ZRAISE
       // Get the limited Z-raise to do now or on resume
       const float zraise = _MAX(0, _MIN(current_position.z + POWER_LOSS_ZRAISE, Z_MAX_POS - 1) - current_position.z);
@@ -318,14 +329,30 @@ void PrintJobRecovery::save(const bool force/*=false*/, const float zraise/*=POW
     // Tell the LCD about the outage, even though it is about to die
     TERN_(EXTENSIBLE_UI, ExtUI::onPowerLoss());
 
-    // Disable all heaters to reduce power loss
-    thermalManager.disable_all_heaters();
 
     #if ENABLED(BACKUP_POWER_SUPPLY)
       // Do a hard-stop of the steppers (with possibly a loud thud)
       quickstop_stepper();
+
+      // X & Y is not needed since now - disable for power saving
+      stepper.disable_axis(X_AXIS);
+      stepper.disable_axis(Y_AXIS);
+
       // With backup power a retract and raise can be done now
       retract_and_lift(zraise);
+
+      // Send the planner command identifier together with the actual physical
+      // Z after quick-stop, retract, raise, and synchronize. The TFT can then
+      // replay the interrupted file command and restore the exact safe Z even
+      // if power failed during a pause, filament change, or another Z move.
+      SERIAL_ECHOPGM("//action:powerloss N", interrupted_id, " Z");
+      // The TFT checkpoints use G-code (logical) coordinates. Convert from
+      // Marlin's native current_position so an existing G92 workspace shift
+      // can never turn a real raised Z into (for example) Z0 in the report.
+      SERIAL_ECHO_F(NATIVE_TO_LOGICAL(current_position.z, Z_AXIS), 3);
+      SERIAL_ECHOPGM(" E");
+      SERIAL_ECHO_F(current_position.e, 5);
+      SERIAL_EOL();
     #endif
 
     if (TERN0(DEBUG_POWER_LOSS_RECOVERY, simulated)) {
@@ -334,7 +361,7 @@ void PrintJobRecovery::save(const bool force/*=false*/, const float zraise/*=POW
       sync_plan_position();
     }
     else
-      kill(GET_TEXT_F(MSG_OUTAGE_RECOVERY));
+      kill(GET_TEXT_F(MSG_OUTAGE_RECOVERY), nullptr, true);
   }
 
 #endif // POWER_LOSS_PIN || DEBUG_POWER_LOSS_RECOVERY
