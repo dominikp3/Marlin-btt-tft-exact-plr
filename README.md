@@ -21,6 +21,91 @@ Marlin 2.1 continues to support both 32-bit ARM and 8-bit AVR boards while addin
 
 Download earlier versions of Marlin on the [Releases page](//github.com/MarlinFirmware/Marlin/releases).
 
+## Exact BTT TFT + UPS Power-Loss Recovery Fork
+
+> [!IMPORTANT]
+> This is an unofficial, machine-specific Marlin fork. Its exact recovery
+> protocol requires the matching modified BIGTREETECH TouchScreenFirmware.
+
+This branch is configured for an Ender 3 with:
+
+- BIGTREETECH SKR E3 Turbo (LPC1769);
+- BIGTREETECH TFT35 E3 V3.0 in touch/serial mode;
+- BIGTREETECH Mini UPS 24 V;
+- HallON v3 mechanically deployed Z probe.
+
+Do not flash its binary on another printer without reviewing
+`Configuration.h`, `Configuration_adv.h`, the board target, pin assignments,
+axis limits, homing directions, thermistors, stepper currents, and UPS signal
+polarity.
+
+### Power-loss recovery changes
+
+- Preserves the TFT checksummed transport line number through Marlin's command
+  queue and planner blocks.
+- Records which planner block is physically executing when the outage is
+  detected, rather than relying on the newest command already acknowledged to
+  the host.
+- Immediately disables heaters and fans to preserve UPS energy.
+- Hard-stops the interrupted move, disables X/Y, retracts filament, raises Z,
+  and waits for the emergency movement to finish.
+- Reports the interrupted line plus post-emergency logical Z and E positions:
+
+  ```text
+  //action:powerloss N<line> Z<position> E<position>
+  ```
+
+- Converts native Z to logical coordinates before reporting it, so a prior
+  `G92` workspace shift cannot corrupt a second recovery in the same print.
+- Keeps the serial connection alive long enough for the final recovery message
+  to reach the TFT before Marlin enters the halted state.
+
+The paired TFT uses this information to replay the interrupted file command,
+restore the real physical Z, compensate all pause/UPS retractions, wait for
+heating, and return to the exact print position.
+
+### Relevant Marlin configuration
+
+The current machine configuration includes:
+
+```cpp
+#define POWER_LOSS_RECOVERY
+#define PLR_ENABLED_DEFAULT true
+#define BACKUP_POWER_SUPPLY
+#define POWER_LOSS_ZRAISE 10
+#define POWER_LOSS_PIN P1_20
+#define POWER_LOSS_STATE HIGH
+#define POWER_LOSS_PULLUP
+#define POWER_LOSS_RETRACT_LEN 10
+
+#define ADVANCED_OK
+#define SERIAL_FLOAT_PRECISION 4
+#define HOST_ACTION_COMMANDS
+```
+
+`POWER_LOSS_PIN P1_20` and its active state are specific to the tested SKR E3
+Turbo wiring. Verify them electrically before enabling the UPS input on any
+other board.
+
+On the paired TFT, command checksums must be enabled
+(`command_checksum:1`). The tested TFT configuration uses
+`advanced_ok:0`.
+
+### Validated scenarios
+
+The paired firmware has been tested successfully for:
+
+- an outage during ordinary printing;
+- an outage after pause parking has completed;
+- an outage during the pause Z-lift;
+- another outage after an earlier recovery of the same print.
+
+These tests cover the planner-buffer gap, combined pause/UPS retraction,
+partially completed Z movement, and repeated-recovery coordinate-offset cases.
+
+This fork remains licensed under GPL-3.0. It preserves the upstream copyright
+and license and is not an official Marlin or BIGTREETECH release.
+
 ## Example Configurations
 
 Before you can build Marlin for your machine you'll need a configuration for your specific hardware. Upon request, your vendor will be happy to provide you with the complete source code and configurations for your machine, but you'll need to get updated configuration files if you want to install a newer version of Marlin. Fortunately, Marlin users have contributed dozens of tested configurations to get you started. Visit the [MarlinFirmware/Configurations](//github.com/MarlinFirmware/Configurations) repository to find the right configuration for your hardware.
