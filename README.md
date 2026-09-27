@@ -25,7 +25,22 @@ Download earlier versions of Marlin on the [Releases page](//github.com/MarlinFi
 
 > [!IMPORTANT]
 > This is an unofficial, machine-specific Marlin fork. Its exact recovery
-> protocol requires the matching modified BIGTREETECH TouchScreenFirmware.
+> protocol requires the matching
+> [BIGTREETECH-TouchScreenFirmware-exact-plr](https://github.com/dominikp3/BIGTREETECH-TouchScreenFirmware-exact-plr)
+> fork.
+
+### Upstream base and paired firmware
+
+This fork is based on the official Marlin `lts-2.1.2` branch at commit
+[`78e0dd331a`](https://github.com/MarlinFirmware/Marlin/commit/78e0dd331a8210abbf85e6e427c8aca345ed2a61).
+The nearest preceding tagged stable release is
+[Marlin 2.1.2.8](https://github.com/MarlinFirmware/Marlin/releases/tag/2.1.2.8).
+It is not based on the `bugfix-2.1.x` development branch.
+
+Use it with the paired
+[BIGTREETECH-TouchScreenFirmware-exact-plr](https://github.com/dominikp3/BIGTREETECH-TouchScreenFirmware-exact-plr)
+fork. When releases are published, use matching release versions from both
+repositories.
 
 This branch is configured for an Ender 3 with:
 
@@ -102,6 +117,28 @@ The paired firmware has been tested successfully for:
 
 These tests cover the planner-buffer gap, combined pause/UPS retraction,
 partially completed Z movement, and repeated-recovery coordinate-offset cases.
+
+### Binary releases
+
+There is no universal Marlin binary: board revisions, probes, thermistors,
+printer geometry, motor directions, current limits, and UPS wiring all affect
+the build. Compiling from source after reviewing the configuration is the
+recommended installation method.
+
+If a prebuilt binary is published, it should be a GitHub Release asset rather
+than a generated file committed to the source tree. It must be clearly labeled
+for the exact tested Ender 3, SKR E3 Turbo, HallON v3, and BTT Mini UPS
+configuration. Users of any other configuration must build their own binary.
+
+### Development and warranty notice
+
+Parts of this implementation and documentation were developed with assistance
+from OpenAI Codex. The maintainer reviewed the changes and performed the
+hardware tests described above. The firmware is provided without warranty;
+successful tests on the listed hardware do not guarantee correct behavior for
+every printer configuration, storage medium, timing condition, or failure
+mode. Test recovery in controlled conditions before relying on it for an
+unattended print.
 
 This fork remains licensed under GPL-3.0. It preserves the upstream copyright
 and license and is not an official Marlin or BIGTREETECH release.
